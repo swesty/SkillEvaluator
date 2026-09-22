@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from harbor.environments.base import BaseEnvironment
 
 _CODEX_MODEL_ARG_RE = re.compile(r"(?P<prefix>(?:^|\s)--model(?:=|\s+))(?P<model>[^\s]+)(?P<suffix>(?=\s|$))")
+_CODEX_REASONING_EFFORT_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 _DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 _NVIDIA_BUILD_BRIDGE_BASE_URL = "https://integrate.api.nvidia.com/v1"
@@ -170,6 +171,19 @@ class SkillEvaluatorLocalCodex(Codex):
 
         return _rewrite_launcher_segment(command, lambda text: _CODEX_MODEL_ARG_RE.sub(replace, text))
 
+    def _override_gateway_reasoning_effort(self, command: str, env: dict[str, str] | None) -> str:
+        """Override Harbor's Codex reasoning effort for compatible gateways when requested."""
+        effort = os.environ.get("SKILL_EVAL_CODEX_REASONING_EFFORT", "").strip()
+        base_url = (env or {}).get("OPENAI_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+        if not effort or not base_url:
+            return command
+        if not _CODEX_REASONING_EFFORT_RE.fullmatch(effort):
+            raise ValueError("SKILL_EVAL_CODEX_REASONING_EFFORT must contain only letters, digits, '_' or '-'")
+        return _rewrite_launcher_segment(
+            command,
+            lambda text: re.sub(r"(?<=model_reasoning_effort=)[A-Za-z0-9_-]+", effort, text),
+        )
+
     async def exec_as_agent(
         self,
         environment: BaseEnvironment,
@@ -186,6 +200,7 @@ class SkillEvaluatorLocalCodex(Codex):
             ),
         )
         command = self._preserve_gateway_model_name(command, env)
+        command = self._override_gateway_reasoning_effort(command, env)
         return await super().exec_as_agent(
             environment,
             command=command,

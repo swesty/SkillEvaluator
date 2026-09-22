@@ -1373,6 +1373,32 @@ def test_harbor_subprocess_environment_excludes_arbitrary_host_secrets(
     }
 
 
+def test_harbor_subprocess_environment_preserves_codex_reasoning_effort_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        runner.os,
+        "environ",
+        {
+            "PATH": "/usr/bin",
+            "HOME": "/home/test",
+            "SKILL_EVAL_CODEX_REASONING_EFFORT": "medium",
+        },
+    )
+    provider = _provider()
+
+    environment = runner._harbor_subprocess_environment(
+        env_mode="local",
+        provider=provider,
+        configured_runtime_env={},
+        provider_env=runner._provider_environment(provider),
+        agent="codex",
+        agent_model="qwen3.8-27b",
+    )
+
+    assert environment["SKILL_EVAL_CODEX_REASONING_EFFORT"] == "medium"
+
+
 def test_harbor_subprocess_environment_includes_only_selected_backend_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -3008,6 +3008,27 @@ def test_evaluator_python_path_uses_only_selected_runtime_prefix(
     assert captured["agents"] == ["codex"]
 
 
+def test_evaluator_python_path_preserves_virtual_environment_bin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    venv_bin = tmp_path / "venv" / "bin"
+    base_bin = tmp_path / "python-install" / "bin"
+    venv_bin.mkdir(parents=True)
+    base_bin.mkdir(parents=True)
+    visible_python = venv_bin / "python"
+    visible_python.symlink_to(base_bin / "python")
+    monkeypatch.setattr(sys, "executable", str(visible_python))
+
+    environment = object.__new__(SkillEvaluatorLocalEnvironment)
+    environment._runtime_root = tmp_path / "managed"
+    environment._runtime_agent = "codex"
+
+    path = environment._path_with_evaluator_python(os.defpath)
+
+    assert path.split(os.pathsep)[0] == str(venv_bin)
+
+
 @pytest.mark.skipif(os.name == "nt", reason=_NATIVE_WINDOWS_LOCAL_REASON)
 def test_shell_path_rewrite_quotes_unquoted_path_with_spaces(tmp_path: Path) -> None:
     target = tmp_path / "result with spaces"

@@ -157,6 +157,7 @@ _HARBOR_BASE_ENV_VARS = frozenset(
     }
 )
 _HARBOR_ENV_MODE_VARS = {
+    ENV_MODE_LOCAL: frozenset({"SKILL_EVAL_CODEX_REASONING_EFFORT"}),
     "docker": frozenset(
         {
             "DOCKER_API_VERSION",

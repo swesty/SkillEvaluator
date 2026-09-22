@@ -194,6 +194,34 @@ def test_local_codex_preserves_instruction_text_during_launcher_rewrites(monkeyp
     assert "/tmp/codex-secrets" in prompt
 
 
+def test_local_codex_overrides_reasoning_effort_for_compatible_gateway(monkeypatch, tmp_path) -> None:
+    captured: dict[str, str] = {}
+
+    async def fake_parent_exec(self, environment, command, **kwargs):
+        captured["command"] = command
+
+    monkeypatch.setattr(
+        "harbor.agents.installed.base.BaseInstalledAgent.exec_as_agent",
+        fake_parent_exec,
+    )
+    monkeypatch.setenv("SKILL_EVAL_CODEX_REASONING_EFFORT", "medium")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://provider.example/v1")
+
+    agent = SkillEvaluatorLocalCodex(logs_dir=tmp_path, model_name="qwen3.8-27b")
+    asyncio.run(
+        agent.exec_as_agent(
+            object(),
+            "codex exec -c model_reasoning_effort=high -- 'keep model_reasoning_effort=high here'",
+            env={},
+        )
+    )
+
+    launcher, _separator, prompt = captured["command"].partition(" -- ")
+    assert "model_reasoning_effort=medium" in launcher
+    assert "model_reasoning_effort=high" not in launcher
+    assert "model_reasoning_effort=high" in prompt
+
+
 def test_local_opencode_supports_nvidia_provider_without_harbor_patch(monkeypatch, tmp_path) -> None:
     commands: list[str] = []
     envs: list[dict[str, str]] = []

@@ -991,7 +991,10 @@ class SkillEvaluatorLocalEnvironment(BaseEnvironment):
     def _path_with_evaluator_python(self, path: str) -> str:
         """Ensure local verifier scripts use the evaluator's Python runtime."""
         parts = [piece for piece in path.split(os.pathsep) if piece]
-        python_bin = str(Path(sys.executable).resolve().parent)
+        # Preserve the visible executable path so a virtual environment keeps
+        # its site-packages. Resolving the venv symlink selects the base Python
+        # installation instead and makes verifier dependencies unavailable.
+        python_bin = str(Path(sys.executable).expanduser().absolute().parent)
         if python_bin in parts:
             return os.pathsep.join(parts)
 
